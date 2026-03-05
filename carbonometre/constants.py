@@ -127,7 +127,7 @@ TEAM_OPTIONS = {
     **LAB_CONFIG["teams"],
 }
 
-POSTES = ["achats", "domicile_travail", "campagnes_terrain", "missions", "heures_calcul"]
+POSTES = ["achats", "domicile_travail", "campagnes_terrain", "missions", "heures_calcul", "plateforme"]
 
 DEFAULT_FACTORS = {
     "achats_kgco2e_per_eur": 0.30,
@@ -163,6 +163,108 @@ DEFAULT_FACTORS = {
         "car": 0.20,
     },
     "heures_calcul_kgco2e_per_kwh": 0.05,
+    "plateforme_material_factors": {
+        "Pompe a vide": 0.45,
+        "Laser femtoseconde": 0.60,
+        "Microscope confocal": 0.40,
+        "Spectrometre de masse": 0.55,
+        "Cryostat": 0.50,
+    },
+    "plateforme_usage_kgco2e_per_hour": 0.70,
+    "plateforme_maintenance_kgco2e_per_eur": 0.12,
+    "plateforme_invoice_kgco2e_per_eur": 0.08,
+}
+
+DEFAULT_FACTOR_REFERENCES = {
+    "achats_kgco2e_per_eur": "",
+    "achats_category_factors": {
+        "Ordinateur portable": "",
+        "Ordinateur fixe": "",
+        "Serveur": "",
+        "Instrument scientifique": "",
+        "Consommables labo": "",
+        "Mobilier": "",
+        "Autre": "",
+    },
+    "domicile_mode_factors": {
+        "car": "",
+        "train": "",
+        "bus": "",
+        "metro": "",
+        "tram": "",
+        "bike": "",
+        "walk": "",
+        "other": "",
+    },
+    "campagnes_mode_factors": {
+        "plane": "",
+        "boat": "",
+        "car": "",
+        "train": "",
+        "other": "",
+    },
+    "missions_mode_factors": {
+        "plane": "",
+        "train": "",
+        "car": "",
+    },
+    "heures_calcul_kgco2e_per_kwh": "",
+    "plateforme_material_factors": {
+        "Pompe a vide": "",
+        "Laser femtoseconde": "",
+        "Microscope confocal": "",
+        "Spectrometre de masse": "",
+        "Cryostat": "",
+    },
+    "plateforme_usage_kgco2e_per_hour": "",
+    "plateforme_maintenance_kgco2e_per_eur": "",
+    "plateforme_invoice_kgco2e_per_eur": "",
+}
+
+DEFAULT_FACTOR_UNCERTAINTY_PCT = {
+    "achats_kgco2e_per_eur": 10.0,
+    "achats_category_factors": {
+        "Ordinateur portable": 10.0,
+        "Ordinateur fixe": 10.0,
+        "Serveur": 10.0,
+        "Instrument scientifique": 10.0,
+        "Consommables labo": 10.0,
+        "Mobilier": 10.0,
+        "Autre": 10.0,
+    },
+    "domicile_mode_factors": {
+        "car": 10.0,
+        "train": 10.0,
+        "bus": 10.0,
+        "metro": 10.0,
+        "tram": 10.0,
+        "bike": 10.0,
+        "walk": 10.0,
+        "other": 10.0,
+    },
+    "campagnes_mode_factors": {
+        "plane": 10.0,
+        "boat": 10.0,
+        "car": 10.0,
+        "train": 10.0,
+        "other": 10.0,
+    },
+    "missions_mode_factors": {
+        "plane": 10.0,
+        "train": 10.0,
+        "car": 10.0,
+    },
+    "heures_calcul_kgco2e_per_kwh": 10.0,
+    "plateforme_material_factors": {
+        "Pompe a vide": 10.0,
+        "Laser femtoseconde": 10.0,
+        "Microscope confocal": 10.0,
+        "Spectrometre de masse": 10.0,
+        "Cryostat": 10.0,
+    },
+    "plateforme_usage_kgco2e_per_hour": 10.0,
+    "plateforme_maintenance_kgco2e_per_eur": 10.0,
+    "plateforme_invoice_kgco2e_per_eur": 10.0,
 }
 
 SCHEMA_VERSION = "1.0"

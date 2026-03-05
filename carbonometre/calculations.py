@@ -6,7 +6,7 @@ from typing import Any
 
 import pandas as pd
 
-from carbonometre.constants import DEFAULT_FACTORS, POSTES, TEAM_OPTIONS
+from carbonometre.constants import DEFAULT_FACTORS, DEFAULT_FACTOR_REFERENCES, POSTES, TEAM_OPTIONS
 
 
 def now_iso() -> str:
@@ -14,7 +14,7 @@ def now_iso() -> str:
 
 
 def _base_entry(dossier_id: str, dossier_type: str, is_anonymous: bool, team_code: str, person_label: str) -> dict[str, Any]:
-    if team_code and team_code not in TEAM_OPTIONS:
+    if team_code and team_code not in TEAM_OPTIONS and team_code != "PLATEFORMES":
         raise ValueError("Equipe invalide")
     return {
         "record_id": str(uuid.uuid4()),
@@ -61,8 +61,7 @@ def add_domicile(
     person_label: str,
     transport_mode: str,
     distance_one_way_km: float,
-    days_per_week: float,
-    weeks_per_year: float,
+    days_per_year: float,
     round_trip: bool,
     factor_kgco2e_per_km: float | None,
 ) -> dict[str, Any]:
@@ -72,15 +71,14 @@ def add_domicile(
         if factor_kgco2e_per_km is not None
         else DEFAULT_FACTORS["domicile_mode_factors"].get(transport_mode, DEFAULT_FACTORS["domicile_mode_factors"]["other"])
     )
-    annual_km = float(distance_one_way_km) * (2 if round_trip else 1) * float(days_per_week) * float(weeks_per_year)
+    annual_km = float(distance_one_way_km) * (2 if round_trip else 1) * float(days_per_year)
     emissions = annual_km * factor
     row.update(
         {
             "poste": "domicile_travail",
             "transport_mode": transport_mode,
             "distance_one_way_km": float(distance_one_way_km),
-            "days_per_week": float(days_per_week),
-            "weeks_per_year": float(weeks_per_year),
+            "days_per_year": float(days_per_year),
             "round_trip": bool(round_trip),
             "factor_kgco2e_per_km": factor,
             "annual_km": annual_km,
@@ -195,6 +193,60 @@ def add_heures_calcul(
     return row
 
 
+def add_plateforme(
+    dossier_id: str,
+    dossier_type: str,
+    is_anonymous: bool,
+    team_code: str,
+    person_label: str,
+    platform_name: str,
+    user_role: str,
+    usage_hours: float,
+    usage_dates_label: str,
+    usage_description: str,
+    material_type: str,
+    material_purchase_eur: float,
+    maintenance_costs_eur: float,
+    invoice_eur: float,
+    usage_factor_kgco2e_per_hour: float,
+    material_factor_kgco2e_per_eur: float,
+    maintenance_factor_kgco2e_per_eur: float,
+    invoice_factor_kgco2e_per_eur: float,
+) -> dict[str, Any]:
+    row = _base_entry(dossier_id, dossier_type, is_anonymous, team_code, person_label)
+    role = str(user_role).strip().lower()
+    is_manager = role == "responsable"
+    usage_emissions = float(usage_hours) * float(usage_factor_kgco2e_per_hour)
+    material_emissions = float(material_purchase_eur) * float(material_factor_kgco2e_per_eur) if is_manager else 0.0
+    maintenance_emissions = float(maintenance_costs_eur) * float(maintenance_factor_kgco2e_per_eur) if is_manager else 0.0
+    invoice_emissions = float(invoice_eur) * float(invoice_factor_kgco2e_per_eur) if is_manager else 0.0
+    emissions = usage_emissions + material_emissions + maintenance_emissions + invoice_emissions
+    row.update(
+        {
+            "poste": "plateforme",
+            "platform_name": str(platform_name).strip(),
+            "platform_user_role": role,
+            "usage_hours": float(usage_hours),
+            "usage_dates_label": str(usage_dates_label).strip(),
+            "usage_description": str(usage_description).strip(),
+            "factor_usage_kgco2e_per_hour": float(usage_factor_kgco2e_per_hour),
+            "usage_emissions_kgco2e": usage_emissions,
+            "material_type": str(material_type).strip(),
+            "material_purchase_eur": float(material_purchase_eur if is_manager else 0.0),
+            "maintenance_costs_eur": float(maintenance_costs_eur if is_manager else 0.0),
+            "invoice_eur": float(invoice_eur if is_manager else 0.0),
+            "factor_material_kgco2e_per_eur": float(material_factor_kgco2e_per_eur),
+            "factor_maintenance_kgco2e_per_eur": float(maintenance_factor_kgco2e_per_eur),
+            "factor_invoice_kgco2e_per_eur": float(invoice_factor_kgco2e_per_eur),
+            "material_emissions_kgco2e": material_emissions,
+            "maintenance_emissions_kgco2e": maintenance_emissions,
+            "invoice_emissions_kgco2e": invoice_emissions,
+            "emissions_kgco2e": emissions,
+        }
+    )
+    return row
+
+
 def entries_to_df(entries: list[dict[str, Any]]) -> pd.DataFrame:
     if not entries:
         return pd.DataFrame(columns=["record_id", "dossier_id", "dossier_type", "poste", "emissions_kgco2e"])
@@ -242,12 +294,19 @@ def build_synthese(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_factors_df() -> pd.DataFrame:
+    def _factor_reference(group: str, key: str = "") -> str:
+        ref_group = DEFAULT_FACTOR_REFERENCES.get(group, "")
+        if isinstance(ref_group, dict):
+            return str(ref_group.get(key, "")).strip()
+        return str(ref_group).strip()
+
     rows = [
         {
             "factor_id": "achats_default",
             "factor_domain": "achats",
             "factor_name": "achats_kgco2e_per_eur",
             "factor_value": DEFAULT_FACTORS["achats_kgco2e_per_eur"],
+            "factor_reference": _factor_reference("achats_kgco2e_per_eur"),
             "factor_unit": "kgCO2e/EUR",
             "source": "CEREGE default v1",
             "source_version": "1.0",
@@ -260,6 +319,7 @@ def build_factors_df() -> pd.DataFrame:
             "factor_domain": "heures_calcul",
             "factor_name": "heures_calcul_kgco2e_per_kwh",
             "factor_value": DEFAULT_FACTORS["heures_calcul_kgco2e_per_kwh"],
+            "factor_reference": _factor_reference("heures_calcul_kgco2e_per_kwh"),
             "factor_unit": "kgCO2e/kWh",
             "source": "CEREGE default v1",
             "source_version": "1.0",
@@ -275,6 +335,7 @@ def build_factors_df() -> pd.DataFrame:
                 "factor_domain": "achats",
                 "factor_name": category,
                 "factor_value": val,
+                "factor_reference": _factor_reference("achats_category_factors", category),
                 "factor_unit": "kgCO2e/EUR",
                 "source": "CEREGE default v1",
                 "source_version": "1.0",
@@ -290,6 +351,7 @@ def build_factors_df() -> pd.DataFrame:
                 "factor_domain": "domicile_travail",
                 "factor_name": mode,
                 "factor_value": val,
+                "factor_reference": _factor_reference("domicile_mode_factors", mode),
                 "factor_unit": "kgCO2e/km",
                 "source": "CEREGE default v1",
                 "source_version": "1.0",
@@ -305,6 +367,7 @@ def build_factors_df() -> pd.DataFrame:
                 "factor_domain": "campagnes_terrain",
                 "factor_name": mode,
                 "factor_value": val,
+                "factor_reference": _factor_reference("campagnes_mode_factors", mode),
                 "factor_unit": "kgCO2e/km/person",
                 "source": "CEREGE default v1",
                 "source_version": "1.0",
@@ -320,6 +383,7 @@ def build_factors_df() -> pd.DataFrame:
                 "factor_domain": "missions",
                 "factor_name": mode,
                 "factor_value": val,
+                "factor_reference": _factor_reference("missions_mode_factors", mode),
                 "factor_unit": "kgCO2e/km",
                 "source": "CEREGE default v1",
                 "source_version": "1.0",
@@ -328,5 +392,66 @@ def build_factors_df() -> pd.DataFrame:
                 "is_default": True,
             }
         )
+    for material, val in DEFAULT_FACTORS["plateforme_material_factors"].items():
+        rows.append(
+            {
+                "factor_id": f"plateforme_material_{material.lower().replace(' ', '_')}",
+                "factor_domain": "plateforme",
+                "factor_name": material,
+                "factor_value": val,
+                "factor_reference": _factor_reference("plateforme_material_factors", material),
+                "factor_unit": "kgCO2e/EUR",
+                "source": "CEREGE default v1",
+                "source_version": "1.0",
+                "valid_from": "",
+                "valid_to": "",
+                "is_default": True,
+            }
+        )
+    rows.append(
+        {
+            "factor_id": "plateforme_usage_default",
+            "factor_domain": "plateforme",
+            "factor_name": "usage_hours",
+            "factor_value": DEFAULT_FACTORS["plateforme_usage_kgco2e_per_hour"],
+            "factor_reference": _factor_reference("plateforme_usage_kgco2e_per_hour"),
+            "factor_unit": "kgCO2e/h",
+            "source": "CEREGE default v1",
+            "source_version": "1.0",
+            "valid_from": "",
+            "valid_to": "",
+            "is_default": True,
+        }
+    )
+    rows.append(
+        {
+            "factor_id": "plateforme_maintenance_default",
+            "factor_domain": "plateforme",
+            "factor_name": "maintenance",
+            "factor_value": DEFAULT_FACTORS["plateforme_maintenance_kgco2e_per_eur"],
+            "factor_reference": _factor_reference("plateforme_maintenance_kgco2e_per_eur"),
+            "factor_unit": "kgCO2e/EUR",
+            "source": "CEREGE default v1",
+            "source_version": "1.0",
+            "valid_from": "",
+            "valid_to": "",
+            "is_default": True,
+        }
+    )
+    rows.append(
+        {
+            "factor_id": "plateforme_invoice_default",
+            "factor_domain": "plateforme",
+            "factor_name": "invoice",
+            "factor_value": DEFAULT_FACTORS["plateforme_invoice_kgco2e_per_eur"],
+            "factor_reference": _factor_reference("plateforme_invoice_kgco2e_per_eur"),
+            "factor_unit": "kgCO2e/EUR",
+            "source": "CEREGE default v1",
+            "source_version": "1.0",
+            "valid_from": "",
+            "valid_to": "",
+            "is_default": True,
+        }
+    )
 
     return pd.DataFrame(rows)
