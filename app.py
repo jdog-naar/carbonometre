@@ -1984,8 +1984,6 @@ if st.session_state.get("app_stage", "home") == "home":
     _render_home_page()
     st.stop()
 
-st.markdown(f"### {tf('Mode actif', 'Active mode')}: {_mode_label(mode)}")
-
 with st.sidebar:
     st.header(tf("Navigation", "Navigation"))
     top_view = st.radio(
@@ -2333,6 +2331,22 @@ section[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true
     if st.button(tf("Retour a la page d'accueil", "Back to home page"), key="sidebar_back_home"):
         st.session_state.app_stage = "home"
         st.rerun()
+
+if top_view == "formulaire":
+    st.markdown(
+        f"""
+<style>
+.active-mode-title {{
+  font-size: clamp(30px, 3.1vw, 44px);
+  font-weight: 800;
+  line-height: 1.1;
+  margin: 0.1rem 0 0.9rem 0;
+}}
+</style>
+<div class="active-mode-title">{_mode_label(mode)}</div>
+""",
+        unsafe_allow_html=True,
+    )
 
 if top_view == "labo_overview":
     _render_labo_overview()

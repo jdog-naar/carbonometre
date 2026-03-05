@@ -42,6 +42,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Local helper scripts
+test_local.sh
+
 # Optional: ignore local saved forms if you don't want to version data
 # cerege/
 # github/
